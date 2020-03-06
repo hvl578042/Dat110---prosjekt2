@@ -93,6 +93,15 @@ public class Dispatcher extends Stopable {
 
 		storage.addClientSession(user, connection);
 
+		if (storage.bufferMessage.containsKey(user)) {
+			ClientSession session = storage.getSession(user);
+
+			for (Message m : storage.bufferMessage.get(user)) {
+				session.send(m);
+			}
+			storage.bufferMessage.remove(user);
+		}
+
 	}
 
 	// called by dispatch upon receiving a disconnect message
@@ -110,8 +119,7 @@ public class Dispatcher extends Stopable {
 
 		Logger.log("onCreateTopic:" + msg.toString());
 
-		String topic = msg.getTopic();
-		storage.createTopic(topic);
+		storage.createTopic(msg.getTopic());
 
 	}
 
@@ -119,8 +127,7 @@ public class Dispatcher extends Stopable {
 
 		Logger.log("onDeleteTopic:" + msg.toString());
 
-		String topic = msg.getTopic();
-		storage.deleteTopic(topic);
+		storage.deleteTopic(msg.getTopic());
 
 	}
 
@@ -128,9 +135,7 @@ public class Dispatcher extends Stopable {
 
 		Logger.log("onSubscribe:" + msg.toString());
 
-		String user = msg.getUser();
-		String topic = msg.getTopic();
-		storage.addSubscriber(user, topic);
+		storage.addSubscriber(msg.getUser(), msg.getTopic());
 
 	}
 
@@ -138,9 +143,7 @@ public class Dispatcher extends Stopable {
 
 		Logger.log("onUnsubscribe:" + msg.toString());
 
-		String user = msg.getUser();
-		String topic = msg.getTopic();
-		storage.removeSubscriber(user, topic);
+		storage.removeSubscriber(msg.getUser(), msg.getTopic());
 
 	}
 
@@ -148,11 +151,16 @@ public class Dispatcher extends Stopable {
 
 		Logger.log("onPublish:" + msg.toString());
 
-		String topic = msg.getTopic();
-		Set<String> sub = storage.getSubscribers(topic);
+		Set<String> sub = storage.getSubscribers(msg.getTopic());
+		ClientSession session = null;
 
 		for (String user : sub) {
-			storage.getSession(user).send(msg);
+			session = storage.getSession(user);
+			if (session != null) {
+				session.send(msg);
+			} else {
+				storage.addBufferMessage(user, msg);
+			}
 
 		}
 

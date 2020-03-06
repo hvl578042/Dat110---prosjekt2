@@ -1,12 +1,15 @@
 package no.hvl.dat110.broker;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import no.hvl.dat110.common.TODO;
 import no.hvl.dat110.common.Logger;
 import no.hvl.dat110.messagetransport.Connection;
+import no.hvl.dat110.messages.*;
 
 public class Storage {
 
@@ -19,9 +22,13 @@ public class Storage {
 
 	protected ConcurrentHashMap<String, ClientSession> clients;
 
+	// task E
+	protected ConcurrentHashMap<String, List<Message>> bufferMessage;
+
 	public Storage() {
 		subscriptions = new ConcurrentHashMap<String, Set<String>>();
 		clients = new ConcurrentHashMap<String, ClientSession>();
+		bufferMessage = new ConcurrentHashMap<String, List<Message>>();
 	}
 
 	public Collection<ClientSession> getSessions() {
@@ -88,7 +95,9 @@ public class Storage {
 	public void addSubscriber(String user, String topic) {
 
 		if (subscriptions.containsKey(topic)) {
-			subscriptions.get(topic).add(user);
+			Set<String> subscribers = subscriptions.get(topic);
+			subscribers.add(user);
+			subscriptions.replace(topic, subscribers);
 
 		}
 
@@ -97,8 +106,25 @@ public class Storage {
 	public void removeSubscriber(String user, String topic) {
 
 		if (subscriptions.containsKey(topic)) {
-			subscriptions.get(topic).remove(user);
+
+			Set<String> subscribers = subscriptions.get(topic);
+			if (subscribers.contains(user)) {
+				subscribers.remove(user);
+			}
+			subscriptions.replace(topic, subscribers);
+
 		}
 
+	}
+
+	public void addBufferMessage(String user, Message msg) {
+		if (bufferMessage.containsKey(user)) {
+			bufferMessage.get(user).add(msg);
+
+		} else {
+			List<Message> messages = new ArrayList<Message>();
+			messages.add(msg);
+			bufferMessage.put(user, messages);
+		}
 	}
 }
